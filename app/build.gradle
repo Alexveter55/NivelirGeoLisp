@@ -1,0 +1,19 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'ru.geolisp.nivelir'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ru.geolisp.nivelir'
+        minSdk 29
+        targetSdk 35
+        versionCode 102
+        versionName '1.02'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
