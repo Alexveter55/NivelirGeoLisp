@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050607">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Нивелировка: горизонт инструмента, проектные отметки, отчёты TXT/Excel, сохранение JSON">
+<title>Нивелировка</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{
+    background:#050607;color:#e9edeb;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+    font-size:16px;line-height:1.35;-webkit-text-size-adjust:100%;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .app{width:100%;max-width:560px;margin:0 auto;padding:14px 12px 36px}
+
+  /* ---------- header ---------- */
+  .top{text-align:center;padding:6px 0 16px}
+  .top h1{
+    font-size:clamp(22px,7.2vw,30px);letter-spacing:.22em;font-weight:900;
+    color:#302dcd;text-shadow:0 0 18px rgba(0,204,153,.5)
+  }
+  /* ПАТЧ #2: явный стиль подзаголовка */
+  .top h2{
+    font-size:11px;font-weight:700;letter-spacing:.22em;
+    color:#5d6b66;margin-top:6px;text-transform:uppercase
+  }
+  .top p{
+    margin-top:5px;font-size:10px;letter-spacing:.28em;text-transform:uppercase;
+    color:#5d6b66;font-weight:700
+  }
+
+  /* ---------- station card ---------- */
+  .station{
+    background:#0c0e0e;border:1px solid #1d2a26;border-radius:20px;
+    padding:14px;margin-bottom:14px
+  }
+  .st-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .st-name{font-size:19px;font-weight:900;color:#3532bd;letter-spacing:.08em}
+  .link-hint{
+    font-size:11px;font-weight:700;color:#3532bd;background:rgba(0,204,153,.08);
+    border:1px solid rgba(0,204,153,.25);border-radius:8px;padding:5px 9px;
+    margin-bottom:10px;display:inline-block
+  }
+
+  .icon-btn{
+    width:40px;height:40px;border-radius:12px;border:1px solid #2a2f2d;background:#141414;
+    color:#9aa;font-size:17px;font-weight:800;font-family:inherit;
+    display:grid;place-items:center;cursor:pointer;flex:0 0 auto
+  }
+  .icon-btn:active{transform:scale(.94)}
+  .icon-btn.del{color:#ff6b6b;border-color:#3a2020;background:#1b1010}
+  .icon-btn:disabled{opacity:.3;pointer-events:none}
+
+  /* ---------- fields ---------- */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:359px){.grid2{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .lbl{
+    font-size:10.5px;font-weight:800;color:#7d8a85;
+    text-transform:uppercase;letter-spacing:.03em;line-height:1.2
+  }
+  .inp{
+    width:100%;background:#15171a;border:1.5px solid #2a2f2d;border-radius:12px;
+    padding:12px;font-size:17px;font-weight:800;color:#fff;font-family:inherit;
+    outline:none;transition:border-color .15s,background .15s;
+    font-variant-numeric:tabular-nums
+  }
+  .inp:focus{border-color:#3532bd;background:#0d1a16}
+  .inp::placeholder{color:#46524e;font-weight:600}
+
+  /* ---------- GI ---------- */
+  .gi{
+    margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;
+    background:linear-gradient(180deg,#04221a,#02110d);
+    border:1.5px solid #3532bd;border-radius:14px;padding:10px
+  }
+  .gi-k{font-size:11px;letter-spacing:.2em;color:#3532bd;font-weight:900}
+  .gi-v{font-size:24px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums}
+  .gi-u{font-size:12px;color:#7d8a85;font-weight:700}
+
+  /* ---------- add box ---------- */
+  .add-box{
+    margin-top:14px;padding:12px;border:1px dashed #24352f;
+    border-radius:14px;background:#0a100e
+  }
+  .add-title{
+    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:#3532bd;font-weight:900;margin-bottom:10px
+  }
+  .preview{margin-top:10px;display:flex;flex-direction:column;gap:5px}
+  .pv{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:#7d8a85;font-weight:700}
+  .pv b{color:#fff;font-variant-numeric:tabular-nums;font-weight:800;text-align:right}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    display:block;width:100%;border-radius:14px;padding:14px;font-size:15.5px;
+    font-weight:900;font-family:inherit;cursor:pointer;
+    border:1.5px solid #2a2f2d;background:#15171a;color:#e9edeb;
+    transition:transform .08s,background .15s;text-align:center
+  }
+  .btn:active{transform:scale(.975);background:#1e2422}
+  .btn-add{
+    margin-top:12px;border-color:#3532bd;color:#3532bd;
+    background:rgba(0,204,153,.09)
+  }
+  .btn-primary{
+    border-color:#3532bd;background:#3532bd;color:#001a13;
+    box-shadow:0 0 20px rgba(0,204,153,.35);margin-bottom:10px
+  }
+  .btn.danger{color:#ff6b6b;border-color:#3a2020;background:#1b1010}
+  .btn.danger:active{background:#2a1414}
+
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+  /* ---------- rows ---------- */
+  .rows{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+  .empty{
+    font-size:13px;color:#4d5a55;text-align:center;padding:14px;
+    border:1px dashed #1d2a26;border-radius:12px;font-weight:700
+  }
+  .row{background:#15171a;border:1px solid #232a27;border-radius:14px;padding:10px 12px}
+  .row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .num{
+    font-size:12px;font-weight:900;color:#3532bd;background:rgba(0,204,153,.12);
+    border-radius:8px;padding:2px 9px;min-width:26px;text-align:center
+  }
+  .row-btns{display:flex;gap:6px}
+  .mini{
+    width:34px;height:34px;border-radius:10px;border:1px solid #2a2f2d;background:#101312;
+    color:#9aa;font-size:15px;font-family:inherit;font-weight:800;
+    display:grid;place-items:center;cursor:pointer
+  }
+  .mini:active{transform:scale(.92)}
+  .mini.danger{color:#ff6b6b;border-color:#3a2020}
+
+  .cells{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cell{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .cell span{
+    font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+    color:#6a7772;font-weight:800
+  }
+  .cell b{
+    font-size:15px;font-weight:900;color:#fff;
+    font-variant-numeric:tabular-nums;overflow-wrap:anywhere
+  }
+  .dev-up{color:#ffcc00 !important}
+  .dev-down{color:#ff7b7b !important}
+  .dev-ok{color:#3532bd !important}
+
+  .note{
+    margin-top:8px;width:100%;background:#0d1210;border:1px solid #232a27;
+    border-radius:10px;padding:9px 10px;font-size:16px;color:#cfd8d4;
+    font-family:inherit;font-weight:600;outline:none
+  }
+  .note:focus{border-color:#3532bd}
+  .note::placeholder{color:#46524e}
+
+  /* ---------- toast ---------- */
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);
+    background:#3532bd;color:#001a13;padding:12px 20px;border-radius:14px;
+    font-weight:900;font-size:14px;opacity:0;pointer-events:none;
+    transition:.25s;z-index:2000;max-width:90vw;text-align:center;
+    box-shadow:0 8px 30px rgba(0,204,153,.4)
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+
+  /* ---------- modal ---------- */
+  .modal{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);
+    z-index:3000;justify-content:center;align-items:center;padding:20px
+  }
+  .modal.show{display:flex}
+  .modal-box{
+    background:#121414;border:2px solid #ff5555;border-radius:24px;
+    padding:24px 20px;width:100%;max-width:360px;text-align:center
+  }
+  .modal-title{font-size:22px;font-weight:900;color:#ff5555;margin-bottom:12px}
+  .modal-text{font-size:15px;font-weight:700;color:#c9d3cf;margin-bottom:22px;line-height:1.4}
+  .modal-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal-btn{
+    padding:15px;border-radius:14px;font-size:16px;font-weight:900;
+    font-family:inherit;cursor:pointer;border:2px solid #fff
+  }
+  .modal-btn.yes{background:#ff5555;color:#000}
+  .modal-btn.no{background:#222;color:#fff}
+  .modal-btn:active{transform:scale(.96)}
+  .footer-note {
+            text-align: center; color: var(--text-light); font-size: 0.78rem;
+            padding: 12px; border-top: 1px solid var(--border); background: #fafbfc;
+        }
+        .user-ad-block { margin: 22px auto 14px; padding: 16px; max-width: 1100px; border: 1px dashed #94a3b8; border-radius: 14px; background: linear-gradient(135deg,#f8fafc,#eef4ff); color: #334155; }
+        .user-ad-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:800; font-size:.88rem; margin-bottom:9px; }
+        .ad-edit-btn,.ad-editor-actions button { border:1px solid #cbd5e1; border-radius:8px; padding:7px 11px; background:#fff; color:#334155; font-weight:700; cursor:pointer; }
+        .user-ad-preview { min-height:54px; display:flex; align-items:center; justify-content:center; text-align:center; padding:12px; border-radius:9px; background:rgba(255,255,255,.8); white-space:pre-wrap; line-height:1.5; }
+        .user-ad-preview a { color:#1d4ed8; font-weight:700; }
+        .user-ad-editor { margin-top:12px; padding-top:12px; border-top:1px solid #dbe3ef; }
+        .user-ad-editor label { display:block; font-size:.76rem; font-weight:700; margin:8px 0 4px; }
+        .user-ad-editor textarea,.user-ad-editor input { width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:9px; font:inherit; background:#fff; }
+        .ad-editor-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:9px; }
+        @media(max-width:600px) { .user-ad-block{margin:16px 4px;padding:12px}.user-ad-heading{align-items:flex-start;flex-direction:column}.card-row .row-actions{gap:5px}.card-row .row-actions button{flex:0 0 auto} }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <h1>НИВЕЛИР</h1>
+    <h2>GeoLisp v1.02</h2>
+    <p>горизонт инструмента</p>
+  </header>
+
+  <main id="stationsRoot"></main>
+
+  <button class="btn btn-primary" id="addStationBtn">＋ Добавить станцию</button>
+
+  <div class="actions">
+    <button class="btn" id="copyBtn">📋 Копировать</button>
+    <button class="btn" id="txtBtn">⬇️ TXT</button>
+    <button class="btn" id="xlsBtn">⬇️ Excel</button>
+    <button class="btn" id="jsonBtn">💾 JSON</button>
+    <button class="btn" id="loadBtn">📂 Загрузить</button>
+    <button class="btn danger" id="resetBtn">🗑 Сброс</button>
+  </div>
+
+  <input type="file" id="fileInput" accept=".json,application/json" hidden>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-title">⚠️ СБРОС</div>
+    <div class="modal-text">Все станции и измерения будут удалены. Останется одна пустая станция ST-1.</div>
+    <div class="modal-btns">
+      <button class="modal-btn no" id="modalNo">НЕТ</button>
+      <button class="modal-btn yes" id="modalYes">ДА</button>
+    </div>
+  </div>
+  
+  </div> 
+         
+        
+
+    <!-- Footer -->
+           <!-- Футер -->
+        <div class="footer-links">
+            
+        </div>
+		  </div>
+            <section class="user-ad-block" aria-label="Рекламный блок пользователя">
+                <div class="ad-block">
+  <div class="ad-header">
+    <h2>📢 Размещение рекламы</h2>
+    <p>Расскажите о своём продукте нашей аудитории</p>
+  </div>
+  <!-- Кнопка звонка -->
+      <a class="btn-phone" href="tel:+79937293375">
+        📞 Позвонить
+		<p>
+                <a href="https://t.me/ProgrammYankov" target="_blank">🧮 ProgrammYankov</a> |
+                <a href="https://t.me/GeoLisp" target="_blank">📢  Канал GeoLisp</a> |
+                <a href="https://yankov.alex.gen@gmail.com" target="_blank">📐 Mail</a>
+				
+				<a href="mailto:yankov.alex.gen@gmail.com" target="contact-item"> <span class="icon">ПОЧТА</a>
+
+    </div>
+	
+	
+	
+	
+            </p>
+			
+<a href="https://yoomoney.ru/to/4100119651846362/100" target="_blank">Благодарность Автору по ссылке или QR CODE</a>
+
+      </a>
+	  <?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
+ "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+ width="200.000000pt" height="200.000000pt" viewBox="0 0 567.000000 558.000000"
+ preserveAspectRatio="xMidYMid meet">
+
+<g transform="translate(0.000000,558.000000) scale(0.100000,-0.100000)"
+fill="#000000" stroke="none">
+<path d="M0 2790 l0 -2790 2835 0 2835 0 0 2790 0 2790 -2835 0 -2835 0 0
+-2790z m5390 20 l0 -2500 -2500 0 -2500 0 0 2500 0 2500 2500 0 2500 0 0
+-2500z"/>
+<path d="M420 4685 l0 -595 595 0 595 0 0 595 0 595 -595 0 -595 0 0 -595z
+m1020 0 l0 -425 -425 0 -425 0 0 425 0 425 425 0 425 0 0 -425z"/>
+<path d="M760 4685 l0 -255 255 0 255 0 0 255 0 255 -255 0 -255 0 0 -255z"/>
+<path d="M1950 5195 l0 -85 -85 0 -85 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85
+-85 0 -85 0 0 -85 0 -85 170 0 170 0 0 -255 0 -255 85 0 85 0 0 255 0 255 85
+0 85 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85 -85 0 -85 0 0 -255 0 -255 170 0
+170 0 0 -85 0 -85 -255 0 -255 0 0 -85 0 -85 -85 0 -85 0 0 170 0 170 85 0 85
+0 0 85 0 85 -425 0 -425 0 0 -85 0 -85 -85 0 -85 0 0 85 0 85 -425 0 -425 0 0
+-170 0 -170 255 0 255 0 0 -85 0 -85 -170 0 -170 0 0 -85 0 -85 85 0 85 0 0
+-85 0 -85 170 0 170 0 0 -85 0 -85 85 0 85 0 0 85 0 85 170 0 170 0 0 85 0 85
+-85 0 -85 0 0 85 0 85 85 0 85 0 0 85 0 85 85 0 85 0 0 -170 0 -170 85 0 85 0
+0 -85 0 -85 85 0 85 0 0 -170 0 -170 -85 0 -85 0 0 -170 0 -170 -170 0 -170 0
+0 85 0 85 85 0 85 0 0 170 0 170 -170 0 -170 0 0 -85 0 -85 -85 0 -85 0 0 -85
+0 -85 -85 0 -85 0 0 85 0 85 -85 0 -85 0 0 85 0 85 -255 0 -255 0 0 -595 0
+-595 85 0 85 0 0 510 0 510 85 0 85 0 0 -170 0 -170 85 0 85 0 0 85 0 85 85 0
+85 0 0 -85 0 -85 85 0 85 0 0 85 0 85 85 0 85 0 0 -85 0 -85 85 0 85 0 0 -85
+0 -85 -170 0 -170 0 0 -85 0 -85 -85 0 -85 0 0 85 0 85 -170 0 -170 0 0 -170
+0 -170 85 0 85 0 0 -85 0 -85 85 0 85 0 0 85 0 85 85 0 85 0 0 -85 0 -85 170
+0 170 0 0 85 0 85 170 0 170 0 0 -85 0 -85 -85 0 -85 0 0 -170 0 -170 85 0 85
+0 0 170 0 170 255 0 255 0 0 -85 0 -85 85 0 85 0 0 85 0 85 85 0 85 0 0 -85 0
+-85 85 0 85 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85 -85 0 -85 0 0 -85 0 -85 -85
+0 -85 0 0 85 0 85 -85 0 -85 0 0 85 0 85 -85 0 -85 0 0 -170 0 -170 170 0 170
+0 0 -85 0 -85 85 0 85 0 0 -170 0 -170 85 0 85 0 0 -85 0 -85 255 0 255 0 0
+85 0 85 -255 0 -255 0 0 85 0 85 85 0 85 0 0 85 0 85 -170 0 -170 0 0 85 0 85
+340 0 340 0 0 85 0 85 85 0 85 0 0 -170 0 -170 -170 0 -170 0 0 -85 0 -85 170
+0 170 0 0 -85 0 -85 425 0 425 0 0 -85 0 -85 170 0 170 0 0 85 0 85 85 0 85 0
+0 170 0 170 85 0 85 0 0 255 0 255 -85 0 -85 0 0 -85 0 -85 -170 0 -170 0 0
+-85 0 -85 -85 0 -85 0 0 170 0 170 170 0 170 0 0 85 0 85 170 0 170 0 0 170 0
+170 -85 0 -85 0 0 85 0 85 -85 0 -85 0 0 255 0 255 85 0 85 0 0 85 0 85 -85 0
+-85 0 0 85 0 85 -170 0 -170 0 0 85 0 85 170 0 170 0 0 85 0 85 85 0 85 0 0
+85 0 85 -85 0 -85 0 0 -85 0 -85 -85 0 -85 0 0 85 0 85 -85 0 -85 0 0 170 0
+170 85 0 85 0 0 85 0 85 -85 0 -85 0 0 -85 0 -85 -85 0 -85 0 0 85 0 85 -85 0
+-85 0 0 -85 0 -85 -85 0 -85 0 0 85 0 85 -85 0 -85 0 0 170 0 170 -85 0 -85 0
+0 -255 0 -255 -85 0 -85 0 0 255 0 255 -85 0 -85 0 0 -170 0 -170 -85 0 -85 0
+0 170 0 170 -85 0 -85 0 0 85 0 85 -85 0 -85 0 0 85 0 85 340 0 340 0 0 -85 0
+-85 170 0 170 0 0 85 0 85 -85 0 -85 0 0 85 0 85 85 0 85 0 0 170 0 170 -85 0
+-85 0 0 85 0 85 -255 0 -255 0 0 -170 0 -170 -85 0 -85 0 0 85 0 85 -85 0 -85
+0 0 85 0 85 -85 0 -85 0 0 -85 0 -85 -255 0 -255 0 0 -85 0 -85 -85 0 -85 0 0
+170 0 170 -85 0 -85 0 0 -85z m1020 -170 l0 -85 85 0 85 0 0 -85 0 -85 -85 0
+-85 0 0 -85 0 -85 -85 0 -85 0 0 -85 0 -85 -85 0 -85 0 0 85 0 85 -85 0 -85 0
+0 170 0 170 170 0 170 0 0 85 0 85 85 0 85 0 0 -85z m850 0 l0 -85 -85 0 -85
+0 0 -85 0 -85 -170 0 -170 0 0 85 0 85 85 0 85 0 0 85 0 85 170 0 170 0 0 -85z
+m-1530 -340 l0 -85 -85 0 -85 0 0 85 0 85 85 0 85 0 0 -85z m510 -510 l0 -85
+85 0 85 0 0 85 0 85 85 0 85 0 0 -85 0 -85 -85 0 -85 0 0 -170 0 -170 340 0
+340 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85 -85 0 -85 0 0 -85 0 -85 -255 0 -255
+0 0 -85 0 -85 255 0 255 0 0 -85 0 -85 85 0 85 0 0 170 0 170 85 0 85 0 0 170
+0 170 85 0 85 0 0 -170 0 -170 170 0 170 0 0 85 0 85 85 0 85 0 0 -170 0 -170
+-340 0 -340 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85 -85 0 -85 0 0 85 0 85 -85 0
+-85 0 0 -255 0 -255 -85 0 -85 0 0 -85 0 -85 340 0 340 0 0 -170 0 -170 -255
+0 -255 0 0 -85 0 -85 -85 0 -85 0 0 -85 0 -85 -85 0 -85 0 0 -85 0 -85 85 0
+85 0 0 -85 0 -85 -170 0 -170 0 0 85 0 85 -85 0 -85 0 0 85 0 85 -85 0 -85 0
+0 85 0 85 -85 0 -85 0 0 85 0 85 -85 0 -85 0 0 -85 0 -85 -85 0 -85 0 0 170 0
+170 85 0 85 0 0 85 0 85 -170 0 -170 0 0 -85 0 -85 -340 0 -340 0 0 -85 0 -85
+-170 0 -170 0 0 85 0 85 170 0 170 0 0 85 0 85 340 0 340 0 0 85 0 85 -85 0
+-85 0 0 170 0 170 85 0 85 0 0 170 0 170 -85 0 -85 0 0 85 0 85 85 0 85 0 0
+-85 0 -85 85 0 85 0 0 170 0 170 170 0 170 0 0 85 0 85 85 0 85 0 0 85 0 85
+-85 0 -85 0 0 85 0 85 -85 0 -85 0 0 170 0 170 85 0 85 0 0 -85z m-1700 -510
+l0 -85 85 0 85 0 0 -85 0 -85 -85 0 -85 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85
+-85 0 -85 0 0 85 0 85 -85 0 -85 0 0 85 0 85 85 0 85 0 0 85 0 85 -85 0 -85 0
+0 85 0 85 85 0 85 0 0 -85z m510 0 l0 -85 -85 0 -85 0 0 85 0 85 85 0 85 0 0
+-85z m3060 -850 l0 -85 170 0 170 0 0 -85 0 -85 -170 0 -170 0 0 -85 0 -85 85
+0 85 0 0 -170 0 -170 85 0 85 0 0 -85 0 -85 -85 0 -85 0 0 -85 0 -85 -85 0
+-85 0 0 85 0 85 -85 0 -85 0 0 170 0 170 85 0 85 0 0 85 0 85 -340 0 -340 0 0
+85 0 85 255 0 255 0 0 170 0 170 85 0 85 0 0 -85z m-3060 -170 l0 -85 -85 0
+-85 0 0 85 0 85 85 0 85 0 0 -85z m2890 -1190 l0 -255 -255 0 -255 0 0 255 0
+255 255 0 255 0 0 -255z m170 -510 l0 -85 -255 0 -255 0 0 -85 0 -85 -85 0
+-85 0 0 170 0 170 340 0 340 0 0 -85z m340 -340 l0 -85 -85 0 -85 0 0 85 0 85
+85 0 85 0 0 -85z"/>
+<path d="M2800 4855 l0 -85 -85 0 -85 0 0 -85 0 -85 85 0 85 0 0 85 0 85 85 0
+85 0 0 85 0 85 -85 0 -85 0 0 -85z"/>
+<path d="M2970 3410 l0 -170 85 0 85 0 0 170 0 170 -85 0 -85 0 0 -170z"/>
+<path d="M3480 3495 l0 -85 85 0 85 0 0 85 0 85 -85 0 -85 0 0 -85z"/>
+<path d="M2630 3155 l0 -85 -85 0 -85 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85
+-85 0 -85 0 0 -170 0 -170 170 0 170 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85 -85
+0 -85 0 0 -85 0 -85 85 0 85 0 0 -85 0 -85 340 0 340 0 0 85 0 85 85 0 85 0 0
+85 0 85 -85 0 -85 0 0 85 0 85 -85 0 -85 0 0 -170 0 -170 -85 0 -85 0 0 170 0
+170 -170 0 -170 0 0 85 0 85 340 0 340 0 0 255 0 255 -85 0 -85 0 0 -170 0
+-170 -170 0 -170 0 0 85 0 85 85 0 85 0 0 85 0 85 -255 0 -255 0 0 170 0 170
+-85 0 -85 0 0 -85z m170 -510 l0 -85 85 0 85 0 0 -85 0 -85 -85 0 -85 0 0 85
+0 85 -85 0 -85 0 0 85 0 85 85 0 85 0 0 -85z"/>
+<path d="M4160 1455 l0 -85 85 0 85 0 0 85 0 85 -85 0 -85 0 0 -85z"/>
+<path d="M4160 4685 l0 -595 595 0 595 0 0 595 0 595 -595 0 -595 0 0 -595z
+m1020 0 l0 -425 -425 0 -425 0 0 425 0 425 425 0 425 0 0 -425z"/>
+<path d="M4500 4685 l0 -255 255 0 255 0 0 255 0 255 -255 0 -255 0 0 -255z"/>
+<path d="M1780 4260 l0 -170 85 0 85 0 0 170 0 170 -85 0 -85 0 0 -170z"/>
+<path d="M5010 3835 l0 -85 85 0 85 0 0 -85 0 -85 85 0 85 0 0 85 0 85 -85 0
+-85 0 0 85 0 85 -85 0 -85 0 0 -85z"/>
+<path d="M5180 2985 l0 -85 85 0 85 0 0 85 0 85 -85 0 -85 0 0 -85z"/>
+<path d="M5180 2305 l0 -85 85 0 85 0 0 85 0 85 -85 0 -85 0 0 -85z"/>
+<path d="M420 945 l0 -595 595 0 595 0 0 595 0 595 -595 0 -595 0 0 -595z
+m1020 0 l0 -425 -425 0 -425 0 0 425 0 425 425 0 425 0 0 -425z"/>
+<path d="M760 945 l0 -255 255 0 255 0 0 255 0 255 -255 0 -255 0 0 -255z"/>
+<path d="M2120 1455 l0 -85 85 0 85 0 0 85 0 85 -85 0 -85 0 0 -85z"/>
+<path d="M1780 775 l0 -425 85 0 85 0 0 85 0 85 85 0 85 0 0 -85 0 -85 255 0
+255 0 0 85 0 85 -85 0 -85 0 0 85 0 85 85 0 85 0 0 85 0 85 -340 0 -340 0 0
+85 0 85 170 0 170 0 0 85 0 85 -255 0 -255 0 0 -425z"/>
+</g>
+</svg>
+    </div>
+                </div>
+            </section>
+            
+            
+            <div class="footer-bottom">
+			<p>&copy; 2026 ProgrammYankov.  Все права защищены.</p>
+                <p>По вопросам разработки,использования,а так же сотрудничества.</p>
+            </div>
+    </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ======================= СОСТОЯНИЕ ======================= */
+const STORAGE_KEY = 'nivelir_v3';
+
+let stations  = [];
+let nextId    = 1;
+let nextRowId = 1;
+
+/* ======================= УТИЛИТЫ ======================= */
+const pad    = n => String(n).padStart(2,'0');
+const dateStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const timeStr = () => { const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
+
+const round3 = v => Math.round(v*1000)/1000;
+const fmt3   = v => {
+  const r = Math.round(v*1000)/1000;
+  return (r === 0 ? 0 : r).toFixed(3);
+};
+function fmtRod(v){
+  const r = Math.round(v*10)/10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+function toNum(s){
+  if (s === null || s === undefined) return null;
+  const t = String(s).trim().replace(',', '.');
+  if (t === '') return null;
+  const v = Number(t);
+  return Number.isFinite(v) ? v : null;
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function giOf(st){
+  return (st.repMark ?? 0) + ((st.repRod ?? 0) / 1000);
+}
+function giReady(st){
+  return st.repMark !== null && st.repRod !== null;
+}
+
+function devText(dev){
+  if (dev === null || dev === undefined) return '—';
+  const mm = Math.round(Math.abs(dev));
+  if (mm === 0) return '✓ точно';
+  return (dev > 0 ? '▲ выше ' : '▼ ниже ') + mm + ' мм';
+}
+function devClass(dev){
+  if (dev === null || dev === undefined) return '';
+  if (Math.round(Math.abs(dev)) === 0) return 'dev-ok';
+  return dev > 0 ? 'dev-up' : 'dev-down';
+}
+
+/* ======================= ДАННЫЕ ======================= */
+function createStation(name){
+  return { id: nextId++, name: name, repMark: null, repRod: null, linkedFrom: null, rows: [] };
+}
+
+function nextStationName(){
+  let max = 0;
+  stations.forEach(s => {
+    const m = /^ST-(\d+)$/.exec(s.name || '');
+    if (m) max = Math.max(max, Number(m[1]));
+  });
+  return 'ST-' + (max + 1);
+}
+
+function adoptStations(list){
+  nextId = 1; nextRowId = 1;
+  stations = list.map((s, i) => ({
+    id: nextId++,
+    name: s.name || ('ST-' + (i + 1)),
+    repMark: toNum(s.repMark),
+    repRod: toNum(s.repRod),
+    linkedFrom: s.linkedFrom || null,
+    rows: (Array.isArray(s.rows) ? s.rows : []).map(r => ({
+      id: nextRowId++,
+      rodMm: toNum(r.rodMm) ?? 0,
+      projM: toNum(r.projM),
+      note: r.note || ''
+    }))
+  }));
+  nextId    = Math.max(0, ...stations.map(s => s.id)) + 1;
+  nextRowId = Math.max(0, ...stations.flatMap(s => s.rows.map(r => r.id))) + 1;
+}
+
+/* ======================= ХРАНИЛИЩЕ ======================= */
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ stations, nextId, nextRowId }));
+  }catch(e){ /* ignore quota */ }
+}
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw){
+      const data = JSON.parse(raw);
+      if (data && Array.isArray(data.stations) && data.stations.length){
+        adoptStations(data.stations);
+        return;
+      }
+    }
+  }catch(e){ console.warn('load error', e); }
+
+  nextId = 1; nextRowId = 1;
+  stations = [createStation('ST-1')];
+  nextId = 2;
+}
+
+/* ======================= DOM ======================= */
+const root          = document.getElementById('stationsRoot');
+const addStationBtn = document.getElementById('addStationBtn');
+const copyBtn       = document.getElementById('copyBtn');
+const txtBtn        = document.getElementById('txtBtn');
+const xlsBtn        = document.getElementById('xlsBtn');
+const jsonBtn       = document.getElementById('jsonBtn');
+const loadBtn       = document.getElementById('loadBtn');
+const resetBtn      = document.getElementById('resetBtn');
+const fileInput     = document.getElementById('fileInput');
+const modal         = document.getElementById('modal');
+const modalYes      = document.getElementById('modalYes');
+const modalNo       = document.getElementById('modalNo');
+const toastEl       = document.getElementById('toast');
+
+let toastTimer = null;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1900);
+}
+
+/* ======================= РЕНДЕР ======================= */
+function render(){
+  root.innerHTML = '';
+  stations.forEach(st => root.appendChild(buildStation(st)));
+}
+
+function buildStation(st){
+  const el = document.createElement('section');
+  el.className = 'station';
+  el.dataset.id = st.id;
+
+  el.innerHTML = `
+    <div class="st-head">
+      <div class="st-name">${esc(st.name)}</div>
+      <button class="icon-btn del" data-act="del-station" ${stations.length === 1 ? 'disabled' : ''} aria-label="Удалить станцию">✕</button>
+    </div>
+    ${st.linkedFrom ? `<div class="link-hint">⇄ репер передан со ${esc(st.linkedFrom)}</div>` : ''}
+
+    <div class="grid2">
+      <label class="field">
+        <span class="lbl">Отметка репера, м</span>
+        <input class="inp in-rep" type="text" inputmode="decimal" autocomplete="off" placeholder="0.000">
+      </label>
+      <label class="field">
+        <span class="lbl">Отсчёт на репере, мм</span>
+        <input class="inp in-rod" type="text" inputmode="numeric" autocomplete="off" placeholder="0">
+      </label>
+    </div>
+
+    <div class="gi">
+      <span class="gi-k">ГИ</span>
+      <span class="gi-v">—</span>
+      <span class="gi-u">м</span>
+    </div>
+
+    <div class="add-box">
+      <div class="add-title">Новое измерение</div>
+      <div class="grid2">
+        <label class="field">
+          <span class="lbl">Отсчёт на конструкции, мм</span>
+          <input class="inp in-mrod" type="text" inputmode="numeric" autocomplete="off" placeholder="—">
+        </label>
+        <label class="field">
+          <span class="lbl">Проектная отметка, м</span>
+          <input class="inp in-proj" type="text" inputmode="decimal" autocomplete="off" placeholder="—">
+        </label>
+      </div>
+      <div class="preview">
+        <div class="pv"><span>Отметка конструкции</span><b class="pv-mark">—</b></div>
+        <div class="pv"><span>Отклонение</span><b class="pv-dev">—</b></div>
+        <div class="pv"><span>Проектный отсчёт</span><b class="pv-rod">—</b></div>
+      </div>
+      <button class="btn btn-add" data-act="add-row">＋ В таблицу</button>
+    </div>
+
+    <div class="rows"></div>
+  `;
+
+  const repIn   = el.querySelector('.in-rep');
+  const rodIn   = el.querySelector('.in-rod');
+  const mRodIn  = el.querySelector('.in-mrod');
+  const projIn  = el.querySelector('.in-proj');
+  const giV     = el.querySelector('.gi-v');
+  const rowsBox = el.querySelector('.rows');
+  const pvMark  = el.querySelector('.pv-mark');
+  const pvDev   = el.querySelector('.pv-dev');
+  const pvRod   = el.querySelector('.pv-rod');
+
+  repIn.value = st.repMark === null ? '' : fmt3(st.repMark);
+  rodIn.value = st.repRod  === null ? '' : fmtRod(st.repRod);
+
+  /* ---- пересчёт ---- */
+  function refreshAll(){
+    /* ПАТЧ #4: ГИ показывается только когда оба поля заданы */
+    giV.textContent = giReady(st) ? fmt3(giOf(st)) : '—';
+    renderRows();
+    updatePreview();
+  }
+
+  function updatePreview(){
+    const g    = giOf(st);
+    const rod  = toNum(mRodIn.value);
+    const proj = toNum(projIn.value);
+
+    let mark = null;
+    if (rod !== null)       mark = g - rod / 1000;
+    else if (proj !== null) mark = proj;
+
+    pvMark.textContent = mark === null ? '—' : fmt3(mark) + ' м';
+    pvRod.textContent  = proj === null ? '—' : fmtRod((g - proj) * 1000) + ' мм';
+
+    if (mark !== null && proj !== null){
+      const dev = (mark - proj) * 1000;
+      pvDev.textContent = devText(dev);
+      pvDev.className = 'pv-dev ' + devClass(dev);
+    }else{
+      pvDev.textContent = '—';
+      pvDev.className = 'pv-dev';
+    }
+  }
+
+  function renderRows(){
+    const g = giOf(st);
+    rowsBox.innerHTML = '';
+
+    if (!st.rows.length){
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'Измерений пока нет';
+      rowsBox.appendChild(e);
+      return;
+    }
+
+    st.rows.forEach((row, i) => {
+      const mark = g - row.rodMm / 1000;
+      const dev  = row.projM === null ? null : (mark - row.projM) * 1000;
+
+      const item = document.createElement('div');
+      item.className = 'row';
+      item.innerHTML = `
+        <div class="row-head">
+          <span class="num">${i + 1}</span>
+          <div class="row-btns">
+            <button class="mini" data-act="pass" title="Передать на следующую станцию">⇄</button>
+            <button class="mini danger" data-act="del-row" title="Удалить">✕</button>
+          </div>
+        </div>
+        <div class="cells">
+          <div class="cell"><span>Рейка, мм</span><b>${fmtRod(row.rodMm)}</b></div>
+          <div class="cell"><span>Отметка, м</span><b>${fmt3(mark)}</b></div>
+          <div class="cell"><span>Проект, м</span><b>${row.projM === null ? '—' : fmt3(row.projM)}</b></div>
+          <div class="cell"><span>Отклонение</span><b class="${devClass(dev)}">${devText(dev)}</b></div>
+        </div>
+        <input class="note" type="text" placeholder="Примечание" value="${esc(row.note || '')}">
+      `;
+
+      item.querySelector('.note').addEventListener('input', e => {
+        row.note = e.target.value;
+        save();
+      });
+
+      item.querySelector('[data-act="del-row"]').addEventListener('click', () => {
+        st.rows = st.rows.filter(r => r.id !== row.id);
+        refreshAll();
+        save();
+      });
+
+      item.querySelector('[data-act="pass"]').addEventListener('click', () => {
+        passRowToNext(st, row);
+      });
+
+      rowsBox.appendChild(item);
+    });
+  }
+
+  /* ---- обработчики ---- */
+  repIn.addEventListener('input', () => {
+    st.repMark = toNum(repIn.value);
+    if (st.linkedFrom) st.linkedFrom = null;
+    refreshAll(); save();
+  });
+  rodIn.addEventListener('input', () => {
+    st.repRod = toNum(rodIn.value);
+    refreshAll(); save();
+  });
+  mRodIn.addEventListener('input', updatePreview);
+  projIn.addEventListener('input', updatePreview);
+
+  [repIn, rodIn, mRodIn, projIn].forEach(inp => {
+    inp.addEventListener('focus', () => setTimeout(() => inp.select(), 30));
+  });
+
+  el.querySelector('[data-act="add-row"]').addEventListener('click', () => {
+    /* ПАТЧ #5: блокируем добавление без полных данных станции */
+    if (!giReady(st)){
+      toast('Сначала задайте отметку репера и отсчёт на репере');
+      return;
+    }
+    const g    = giOf(st);
+    let rod    = toNum(mRodIn.value);
+    const proj = toNum(projIn.value);
+
+    if (rod === null && proj === null){
+      toast('Введите отсчёт или проектную отметку');
+      return;
+    }
+    if (rod === null) rod = (g - proj) * 1000;   /* проектный отсчёт */
+
+    st.rows.push({ id: nextRowId++, rodMm: rod, projM: proj, note: '' });
+    mRodIn.value = '';
+    projIn.value = '';
+    refreshAll();
+    save();
+  });
+
+  el.querySelector('[data-act="del-station"]').addEventListener('click', () => {
+    stations = stations.filter(s => s.id !== st.id);
+    save(); render();
+  });
+
+  refreshAll();
+  return el;
+}
+
+/* ======================= ПЕРЕХОД ПО СТАНЦИЯМ ======================= */
+function passRowToNext(st, row){
+  const g    = giOf(st);
+  const mark = round3(g - row.rodMm / 1000);
+  const idx  = stations.findIndex(s => s.id === st.id);
+
+  let next = stations[idx + 1];
+  if (!next){
+    next = createStation(nextStationName());
+    stations.push(next);
+  }
+  next.repMark    = mark;
+  next.repRod     = null;        /* на новой станции нужно снова прочесть рейку */
+  next.linkedFrom = st.name;
+
+  save(); render();
+  toast('Отметка ' + fmt3(mark) + ' м → ' + next.name);
+
+  requestAnimationFrame(() => {
+    const node = root.querySelector('.station[data-id="' + next.id + '"]');
+    if (node) node.scrollIntoView({ behavior:'smooth', block:'center' });
+  });
+}
+
+/* ======================= ДОБАВИТЬ СТАНЦИЮ ======================= */
+addStationBtn.addEventListener('click', () => {
+  const prev = stations[stations.length - 1];
+  const st = createStation(nextStationName());
+
+  if (prev && prev.rows.length){
+    const last = prev.rows[prev.rows.length - 1];
+    st.repMark    = round3(giOf(prev) - last.rodMm / 1000);
+    st.linkedFrom = prev.name;
+  }
+
+  stations.push(st);
+  save(); render();
+  requestAnimationFrame(() => {
+    const node = root.querySelector('.station[data-id="' + st.id + '"]');
+    if (node) node.scrollIntoView({ behavior:'smooth', block:'center' });
+  });
+});
+
+/* ======================= ОТЧЁТЫ ======================= */
+function buildTextReport(){
+  let out = 'НИВЕЛИРОВКА\n' + dateStr() + '  ' + timeStr() + '\n';
+
+  stations.forEach(st => {
+    const g = giOf(st);
+    out += '\n' + '='.repeat(44) + '\n';
+    out += st.name + '\n';
+    if (st.linkedFrom) out += '(репер передан со ' + st.linkedFrom + ')\n';
+    out += 'Отметка репера, м:    ' + (st.repMark === null ? '—' : fmt3(st.repMark)) + '\n';
+    out += 'Отсчёт на репере, мм: ' + (st.repRod  === null ? '—' : fmtRod(st.repRod)) + '\n';
+    out += 'ГИ, м:                ' + (giReady(st) ? fmt3(g) : '—') + '\n';
+    out += '-'.repeat(44) + '\n';
+    out += '№\tРейка, мм\tОтметка, м\tПроект, м\tΔ, мм\tПримечание\n';
+
+    st.rows.forEach((row, i) => {
+      const mark = g - row.rodMm / 1000;
+      const dev  = row.projM === null ? null : (mark - row.projM) * 1000;
+      out += [
+        i + 1,
+        fmtRod(row.rodMm),
+        fmt3(mark),
+        row.projM === null ? '—' : fmt3(row.projM),
+        dev === null ? '—' : ((dev > 0 ? '+' : '') + Math.round(dev)),
+        String(row.note || '').replace(/[\t\n\r]/g, ' ')
+      ].join('\t') + '\n';
+    });
+  });
+
+  return out;
+}
+
+function buildExcelHtml(){
+  let h = '<html xmlns:o="urn:schemas-microsoft-com:office:office" '
+        + 'xmlns:x="urn:schemas-microsoft-com:office:excel" '
+        + 'xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8">'
+        + '<style>td,th{border:1px solid #999;padding:4px 7px;font-family:Calibri,Arial,sans-serif;font-size:11pt}'
+        + 'th{background:#3532bd;color:#000;font-weight:bold}</style></head><body>';
+
+  h += '<table>';
+  h += '<tr><td colspan="6" style="font-size:14pt;font-weight:bold;background:#111;color:#3532bd">'
+     + esc('НИВЕЛИРОВКА — ' + dateStr() + ' ' + timeStr()) + '</td></tr>';
+  h += '<tr><td colspan="6"></td></tr>';
+
+  stations.forEach(st => {
+    const g = giOf(st);
+    h += '<tr><td colspan="6" style="background:#3532bd;font-weight:bold">' + esc(st.name) + '</td></tr>';
+    h += '<tr><td colspan="3">Отметка репера, м</td><td colspan="3">' + (st.repMark === null ? '—' : fmt3(st.repMark)) + '</td></tr>';
+    h += '<tr><td colspan="3">Отсчёт на репере, мм</td><td colspan="3">' + (st.repRod  === null ? '—' : fmtRod(st.repRod)) + '</td></tr>';
+    h += '<tr><td colspan="3">ГИ, м</td><td colspan="3">' + (giReady(st) ? fmt3(g) : '—') + '</td></tr>';
+    h += '<tr><th>№</th><th>Рейка, мм</th><th>Отметка, м</th><th>Проект, м</th><th>Отклонение, мм</th><th>Примечание</th></tr>';
+
+    st.rows.forEach((row, i) => {
+      const mark = g - row.rodMm / 1000;
+      const dev  = row.projM === null ? null : (mark - row.projM) * 1000;
+      h += '<tr>'
+         + '<td>' + (i + 1) + '</td>'
+         + '<td>' + fmtRod(row.rodMm) + '</td>'
+         + '<td>' + fmt3(mark) + '</td>'
+         + '<td>' + (row.projM === null ? '—' : fmt3(row.projM)) + '</td>'
+         + '<td>' + (dev === null ? '—' : ((dev > 0 ? '+' : '') + Math.round(dev))) + '</td>'
+         + '<td>' + esc(row.note || '') + '</td>'
+         + '</tr>';
+    });
+
+    h += '<tr><td colspan="6"></td></tr>';
+  });
+
+  h += '</table></body></html>';
+  return h;
+}
+
+function download(filename, content, mime){
+  const blob = new Blob(['\ufeff', content], { type: mime });
+  /* Android: передаём файл в нативный слой и сохраняем в общую папку Downloads. */
+  if (window.Android && typeof window.Android.saveFile === 'function'){
+    const reader = new FileReader();
+    reader.onloadend = function(){
+      try{
+        const dataUrl = String(reader.result || '');
+        const base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
+        window.Android.saveFile(filename, base64, mime);
+      }catch(e){ toast('Не удалось передать файл Android'); }
+    };
+    reader.onerror = function(){ toast('Ошибка подготовки файла'); };
+    reader.readAsDataURL(blob);
+    return;
+  }
+  /* Обычный браузер: стандартная загрузка файла. */
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+}
+
+/* ======================= КНОПКИ ======================= */
+copyBtn.addEventListener('click', async () => {
+  const text = buildTextReport();
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('Отчёт скопирован');
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); toast('Отчёт скопирован'); }
+    catch(_){ toast('Не удалось скопировать'); }
+    document.body.removeChild(ta);
+  }
+});
+
+txtBtn.addEventListener('click', () => {
+  download('nivelir_' + dateStr() + '.txt', buildTextReport(), 'text/plain;charset=utf-8');
+  toast('Файл TXT сохранён');
+});
+
+xlsBtn.addEventListener('click', () => {
+  download('nivelir_' + dateStr() + '.xls', buildExcelHtml(), 'application/vnd.ms-excel;charset=utf-8');
+  toast('Файл Excel сохранён');
+});
+
+jsonBtn.addEventListener('click', () => {
+  const data = { app:'nivelir', version:3, savedAt:new Date().toISOString(), stations };
+  download('nivelir_' + dateStr() + '.json', JSON.stringify(data, null, 2), 'application/json');
+  toast('Файл JSON сохранён');
+});
+
+loadBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      const list = Array.isArray(data) ? data : (data && data.stations);
+      if (!Array.isArray(list) || !list.length) throw new Error('empty');
+
+      adoptStations(list);
+      save(); render();
+      toast('Загружено станций: ' + stations.length);
+    }catch(err){
+      toast('Ошибка чтения файла');
+    }
+    fileInput.value = '';
+  };
+  reader.readAsText(file);
+});
+
+resetBtn.addEventListener('click', () => modal.classList.add('show'));
+modalNo.addEventListener('click', () => modal.classList.remove('show'));
+modalYes.addEventListener('click', () => {
+  modal.classList.remove('show');
+  nextId = 1; nextRowId = 1;
+  stations = [createStation('ST-1')];
+  nextId = 2;
+  save(); render();
+  toast('Сброшено');
+});
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
+
+/* ======================= СТАРТ ======================= */
+load();
+render();
+
+})();
+</script>
+</body>
+</html>
